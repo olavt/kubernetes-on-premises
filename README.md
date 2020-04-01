@@ -440,6 +440,20 @@ nginx-ingress-controller        LoadBalancer   10.0.71.15   40.119.152.40   80:3
 nginx-ingress-default-backend   ClusterIP      10.0.38.76   <none>          80/TCP                       40s
 ```
 
+Check the details of the nginx ingress controller in order to see port details
+
+```
+$ kubectl describe  service nginx-ingress-controller  --namespace ingress-nginx
+```
+
+Look for these lines:
+```
+NodePort:                 http  32320/TCP
+NodePort:                 https  31710/TCP
+```
+
+These are the port number you need to redirect traffic to in order to hit the ingress. The source ports should be 80 and 443. The destination IP address could be any of the nodes in the cluster. 
+
 ## Install cert-manager (loosely based upon the work of kube-lego)
 
 Run the following script to install cert-manager:
