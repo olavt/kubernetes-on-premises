@@ -7,7 +7,7 @@ This article documents the process of installing a Kubernetes Cluster on from sc
 
 # What you need
 
-You will a minumum of 3 machines (physical or virtual) running Linux. I will be using Ubuntu Server 18.04.4 LTS. Make sure you allocate at leasdt 23 CPU-cores to each node (otherwise kubeadm init will complain).
+You will a minumum of 3 machines (physical or virtual) running Linux. I will be using Ubuntu Server 18.04.4 LTS. Make sure you allocate at leasdt 2 CPU-cores to each node (otherwise kubeadm init will complain).
 
 # Installing Ubuntu Server 18.04.4 LTS
 
