@@ -368,28 +368,6 @@ k01-node-01     Ready    <none>   28m   v1.18.0
 k01-node-02     Ready    <none>   11m   v1.18.0
 ```
 
-## Drain node in preparation for maintenance or deletion
-
-The given node will be marked unschedulable to prevent new pods from arriving. Issue the following command to safely evict all of your pods from the node:
-
-```
-$ kubectl drain --ignore-daemonsets <Node> 
-```
-
-## Make the node schedulable again
-
-```
-$ kubectl uncordon <Node> 
-```
-
-## Remove a node from the cluster
-
-When the pods have been deleted and are up and running on other nodes in the cluster, delete the node with this command:
-
-```
-$ kubectl delete node <Node> 
-```
-
 # Making Kubernetes cluster ready for deployment
 
 ## Install Helm
@@ -514,10 +492,10 @@ metadata:
 spec:
   tls:
   - hosts:
-    - <YourDNSName>.westeurope.cloudapp.azure.com
+    - <Your FQN domain name>
     secretName: tls-secret
   rules:
-  - host: <YourDNSName>.westeurope.cloudapp.azure.com
+  - host: <Your FQN domain name>
     http:
       paths:
       - path: /
@@ -549,4 +527,32 @@ Events:
   Normal  GeneratedKey  26m    cert-manager  Generated a new private key
   Normal  Requested     26m    cert-manager  Created new CertificateRequest resource "tls-secret-3533869916"
   Normal  Issued        7m17s  cert-manager  Certificate issued successfully
+```
+
+### Troubleshooting certificate requests
+
+See this article for troubleshootin: https://cert-manager.io/docs/faq/acme/
+
+# Useful Kubernetes admin commmands
+
+## Drain node in preparation for maintenance or deletion
+
+The given node will be marked unschedulable to prevent new pods from arriving. Issue the following command to safely evict all of your pods from the node:
+
+```
+$ kubectl drain --ignore-daemonsets <Node> 
+```
+
+## Make the node schedulable again
+
+```
+$ kubectl uncordon <Node> 
+```
+
+## Remove a node from the cluster
+
+When the pods have been deleted and are up and running on other nodes in the cluster, delete the node with this command:
+
+```
+$ kubectl delete node <Node> 
 ```
