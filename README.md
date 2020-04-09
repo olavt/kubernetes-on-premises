@@ -84,7 +84,7 @@ $ sudo apt-key fingerprint 0EBFCD88
 Set up the stable repository:
 
 ```
-sudo add-apt-repository \
+$ sudo add-apt-repository \
    "deb [arch=amd64] https://download.docker.com/linux/ubuntu \
    $(lsb_release -cs) \
    stable"
@@ -187,13 +187,6 @@ $ sudo mkdir -p /etc/systemd/system/docker.service.d
 $ sudo reboot now
 ```
 
-
-### Restart docker.
-```
-$ sudo systemctl daemon-reload
-$ sudo systemctl restart docker
-```
-
 ## Disable swap (required for Kubernetes)
 
 Check if swap is enabled:
@@ -222,7 +215,9 @@ Delete the actual swapfile file
 $ sudo rm /swap.img
 ```
 
-### Install required Kubernetes software (latest version)
+ # Setup Kubernetes
+
+## Install required Kubernetes software (latest version)
 ```
 $ curl -s https://packages.cloud.google.com/apt/doc/apt-key.gpg | sudo apt-key add - && \
   echo "deb http://apt.kubernetes.io/ kubernetes-xenial main" | sudo tee /etc/apt/sources.list.d/kubernetes.list && \
@@ -232,7 +227,7 @@ $ curl -s https://packages.cloud.google.com/apt/doc/apt-key.gpg | sudo apt-key a
 
 or
 
-### Install required Kubernetes software (specific version)
+## Install required Kubernetes software (specific version)
 
 If you want to install a specific version of Kubernets, the installation command looks like this:
 
@@ -248,17 +243,21 @@ Replace the version in the command above with the version you want to install. T
 curl -s https://packages.cloud.google.com/apt/dists/kubernetes-xenial/main/binary-amd64/Packages | grep Version | awk '{print $2}'
 ```
 
-# Prepare the Master node
+## Prepare the Master node
 
-# Initializing your Master
+### Initializing your Master
 
 Perform this operation on the node that you want to designate as the Master.
 
 For Flannel networking:
 ```
 $ sudo kubeadm init --pod-network-cidr=10.244.0.0/16
+```
 
-$ sudo sysctl net.bridge.bridge-nf-call-iptables=1
+It is recommended to enable bridged IPv4 traffic to iptables chains when using Flannel:
+
+```
+$ sudo sysctl net.bridge.bridge-nf-call-iptables=1 (Note! Run this on all Linux nodes)
 ```
 
 or
@@ -273,7 +272,7 @@ This step will take a while.
 
 Take a note of the node-join information printed at the end of this command. You will need that information when you join the other machines (Nodes) to the cluster.
 
-## Prepare for running kubectl on the Master
+### Prepare for running kubectl on the Master
 ```
   mkdir -p $HOME/.kube
   sudo cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
@@ -281,6 +280,37 @@ Take a note of the node-join information printed at the end of this command. You
 ```
 
 ### Install networking for Kubernetes
+
+Note! In order to support Windows nodes in the cluster, use Flannel.
+
+Flannel (latest version):
+
+Download the most recent Flannel manifest:
+```
+$ wget https://raw.githubusercontent.com/coreos/flannel/master/Documentation/kube-flannel.yml
+```
+Note: The VNI must be set to 4096 and port 4789 for Flannel on Linux to interoperate with Flannel on Windows.
+
+Modify the net-conf.json section of the flannel manifest in order to set the VNI to 4096 and the Port to 4789. It should look as follows:
+
+```
+net-conf.json: |
+    {
+      "Network": "10.244.0.0/16",
+      "Backend": {
+        "Type": "vxlan",
+        "VNI" : 4096,
+        "Port": 4789
+      }
+    }
+```
+
+Apply the Flannel manifest and validate:
+```
+$ kubectl apply -f kube-flannel.yml
+```
+
+or
 
 Weave (latest version):
 ```
@@ -292,14 +322,6 @@ or (Weave specif version)
 
 ```
 $ kubectl apply -f https://git.io/weave-kube-1.6
-```
-
-or
-
-Flannel (latest version):
-```
-$ kubectl apply -f https://raw.githubusercontent.com/coreos/flannel/master/Documentation/kube-flannel.yml
-
 ```
 
 ### Check status
@@ -322,9 +344,21 @@ weave-net-gktdl                         2/2     Running   1          9m12s
 weave-net-rdn9q                         2/2     Running   0          19m
 ```
 
+## Add support for adding Windows nodes (can be skipped for Linux only cluster)
+
+### Add Windows Flannel and kube-proxy DaemonSets
+
+Add Windows-compatible versions of Flannel and kube-proxy. In order to ensure that you get a compatible version of kube-proxy, you’ll need to substitute the tag of the image. The following example shows usage for Kubernetes v1.18.0, but you should adjust the version for your own deployment.
+
+```
+$ curl -L https://github.com/kubernetes-sigs/sig-windows-tools/releases/latest/download/kube-proxy.yml | sed 's/VERSION/v1.18.0/g' | kubectl apply -f -
+
+$ kubectl apply -f https://github.com/kubernetes-sigs/sig-windows-tools/releases/latest/download/flannel-overlay.yml
+```
+
 You have now performed the steps required to setup the Master.
 
-## Join a Node to the cluster
+## Join a Linux Node to the cluster
 
 Remember to perform all the common preparation steps first!
 
@@ -367,6 +401,41 @@ k01-master-01   Ready    master   29m   v1.18.0
 k01-node-01     Ready    <none>   28m   v1.18.0
 k01-node-02     Ready    <none>   11m   v1.18.0
 ```
+
+## Adding a Windows node to the cluster
+
+### Install Docker Engine - Enterprise
+
+To install the Docker Engine - Enterprise on your hosts, Docker provides a OneGet PowerShell Module.
+
+1. Open an elevated PowerShell command prompt, and type the following commands.
+
+```
+Install-Module DockerMsftProvider -Force
+Install-Package Docker -ProviderName DockerMsftProvider -Force
+```
+
+2. Restart the server
+
+3. Test your Docker Engine - Enterprise installation by running the hello-world container.
+
+```
+docker run hello-world:nanoserver
+```
+
+### Install Kubernetes software
+
+```
+curl.exe -LO https://github.com/kubernetes-sigs/sig-windows-tools/releases/latest/download/PrepareNode.ps1
+```
+
+Replace the version number below with the version number you are using for Kubernetes in the cluster.
+
+```
+.\PrepareNode.ps1 -KubernetesVersion {{1.18.0}}
+```
+
+
 
 # Making Kubernetes cluster ready for deployment
 
@@ -474,7 +543,7 @@ Create CA Cluster Issues resource with the kubectl apply command:
 $ kubectl apply -f cluster-issuer.yaml
 ```
 
-### Create an ingress route (for Nginx)
+## Create an ingress route (for Nginx)
 
 This step assumes that you already have deployed some service (web application) to test with.
 
@@ -512,7 +581,7 @@ $ kubectl apply -f test-ingress.yaml
 
 Now you should be able to browse to https://<YourDNSName>.westeurope.cloudapp.azure.com
 
-### Check generated certificates
+## Check generated certificates
 
 To verify that the certificate was created successfully, issue the following command:
 ```
@@ -556,3 +625,6 @@ When the pods have been deleted and are up and running on other nodes in the clu
 ```
 $ kubectl delete node <Node> 
 ```
+
+## Add a Windows Node to the Kubernetes cluster
+
