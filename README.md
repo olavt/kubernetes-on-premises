@@ -24,36 +24,6 @@ $ sudo apt-get update
 $ sudo apt-get upgrade
 ```
 
-## Configure a static IP address for the node
-
-Edit the /etc/netplan/50-cloud-init.yaml file:
-
-```
-$ sudo nano /etc/netplan/50-cloud-init.yaml
-```
-
-Replace the following line:
-
-```
-            dhcp4: true
-```
-
-with:
-
-```
-            dhcp4: no
-            addresses: [172.20.5.1/16]
-            gateway4: 172.20.1.1
-            nameservers:
-              addresses: [8.8.8.8,8.8.4.4]
-```
-
-Apply changes:
-
-```
-$ sudo netplan apply
-```
-
 ## Install Docker
 
 ### Set up the repository
@@ -179,6 +149,36 @@ Add the following content to the file:
 
 ```
 $ sudo mkdir -p /etc/systemd/system/docker.service.d
+```
+
+## Configure a static IP address for the node
+
+Edit the /etc/netplan/50-cloud-init.yaml file:
+
+```
+$ sudo nano /etc/netplan/50-cloud-init.yaml
+```
+
+Replace the following line:
+
+```
+            dhcp4: true
+```
+
+with:
+
+```
+            dhcp4: no
+            addresses: [172.20.5.1/16]
+            gateway4: 172.20.1.1
+            nameservers:
+              addresses: [8.8.8.8,8.8.4.4]
+```
+
+Apply changes:
+
+```
+$ sudo netplan apply
 ```
 
 ### Reboot
@@ -348,10 +348,10 @@ weave-net-rdn9q                         2/2     Running   0          19m
 
 ### Add Windows Flannel and kube-proxy DaemonSets
 
-Add Windows-compatible versions of Flannel and kube-proxy. In order to ensure that you get a compatible version of kube-proxy, you’ll need to substitute the tag of the image. The following example shows usage for Kubernetes v1.18.0, but you should adjust the version for your own deployment.
+Add Windows-compatible versions of Flannel and kube-proxy. In order to ensure that you get a compatible version of kube-proxy, you’ll need to substitute the tag of the image. The following example shows usage for Kubernetes v1.18.1, but you should adjust the version for your own deployment.
 
 ```
-$ curl -L https://github.com/kubernetes-sigs/sig-windows-tools/releases/latest/download/kube-proxy.yml | sed 's/VERSION/v1.18.0/g' | kubectl apply -f -
+$ curl -L https://github.com/kubernetes-sigs/sig-windows-tools/releases/latest/download/kube-proxy.yml | sed 's/VERSION/v1.18.1/g' | kubectl apply -f -
 
 $ kubectl apply -f https://github.com/kubernetes-sigs/sig-windows-tools/releases/latest/download/flannel-overlay.yml
 ```
@@ -397,12 +397,13 @@ Run the following command on the Master
 ```
 $ kubectl get nodes
 NAME            STATUS   ROLES    AGE   VERSION
-k01-master-01   Ready    master   29m   v1.18.0
-k01-node-01     Ready    <none>   28m   v1.18.0
-k01-node-02     Ready    <none>   11m   v1.18.0
+k02-master-01   Ready    master   83m   v1.18.1
+k02-node-01     Ready    <none>   14m   v1.18.1
 ```
 
 ## Adding a Windows node to the cluster
+
+Run Windows Update until all updates are install first.
 
 ### Install Docker Engine - Enterprise
 
@@ -425,6 +426,7 @@ docker run hello-world:nanoserver
 
 ### Install Kubernetes software
 
+Download the installation script and run it in an elevated PowerShell command window:
 ```
 curl.exe -LO https://github.com/kubernetes-sigs/sig-windows-tools/releases/latest/download/PrepareNode.ps1
 ```
@@ -432,9 +434,12 @@ curl.exe -LO https://github.com/kubernetes-sigs/sig-windows-tools/releases/lates
 Replace the version number below with the version number you are using for Kubernetes in the cluster.
 
 ```
-.\PrepareNode.ps1 -KubernetesVersion {{1.18.0}}
+.\PrepareNode.ps1 -KubernetesVersion {{1.18.1}}
 ```
 
+### Run kubeadm init
+
+Run the kubeadmin -init command (use the command "kubeadm token create --print-join-command" on the master to see the command)
 
 
 # Making Kubernetes cluster ready for deployment
@@ -626,5 +631,23 @@ When the pods have been deleted and are up and running on other nodes in the clu
 $ kubectl delete node <Node> 
 ```
 
-## Add a Windows Node to the Kubernetes cluster
+# Other useful stuff
+
+## Mount Windows Server SMB share on Linux machine
+
+Enable Gues account on Windows Server machine first, then issue these commands on the Linux machine
+
+Install the cifs-utils package:
+
+$ sudo apt-get install cifs-utils
+
+$ sudo mkdir /mnt/photos
+
+$ sudo mount -t cifs //tiger.safari.webinnovation.no/photos /mnt/photos -o username=Guest,password=
+
+To make the mount permanent add it to /etc/fstab
+
+To (re)mount all entries listed in /etc/fstab:
+
+$ sudo mount -a
 
