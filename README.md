@@ -74,10 +74,10 @@ $ sudo apt-get update
 $ apt-cache madison docker-ce
 ```
 
-Install Docker version 19.03.8:
+Install Docker version 19.03.9:
 
 ```
-$ sudo apt-get install docker-ce=5:19.03.8~3-0~ubuntu-bionic docker-ce-cli=5:19.03.8~3-0~ubuntu-bionic containerd.io
+$  sudo apt-get install docker-ce=5:19.03.9~3-0~ubuntu-focal docker-ce-cli=5:19.03.9~3-0~ubuntu-focal containerd.io
 ```
 
 To be able to issue Docker commands without sudo:
@@ -444,33 +444,33 @@ Run the kubeadmin -init command (use the command "kubeadm token create --print-j
 
 # Making Kubernetes cluster ready for deployment
 
-## Install Helm
-
-Install Helm on your Master node in order to be able to deploy to the cluster using Heml
-
-```
-$ curl -fsSL -o get_helm.sh https://raw.githubusercontent.com/helm/helm/master/scripts/get-helm-3
-$ chmod 700 get_helm.sh
-$ ./get_helm.sh
-```
-
-### Add the official Helm stable charts repository
-```
-$ helm repo add stable https://kubernetes-charts.storage.googleapis.com
-```
-
-### Update Helm repositories
-
-```
-$ helm repo update
-```
-
 ## Create a secret for pulling the image from a private registry
 
 If you want to be able to pull an image from a private Docker registry, you need to create a secret for it.
 
 ```
 $ kubectl create secret docker-registry <your-secret-name> --docker-server=<your-docker-server> --docker-username=<your-username> --docker-password=<your-password> --docker-email=<your-email>
+```
+
+## Install Helm
+
+Install Helm on your Master node in order to be able to deploy to the cluster using Heml
+
+```
+curl -fsSL -o get_helm.sh https://raw.githubusercontent.com/helm/helm/master/scripts/get-helm-3
+chmod 700 get_helm.sh
+./get_helm.sh
+```
+
+### Adding the Nginx Helm Repository
+```
+$ helm repo add ingress-nginx https://kubernetes.github.io/ingress-nginx
+```
+
+### Update Helm repositories
+
+```
+$ helm repo update
 ```
 
 ## Configure HTTPS Ingress using Nginx
@@ -480,28 +480,28 @@ $ kubectl create secret docker-registry <your-secret-name> --docker-server=<your
 ```
 $ kubectl create namespace ingress-nginx
 
-$ helm install --set controller.service.type=NodePort nginx-ingress stable/nginx-ingress --namespace ingress-nginx
+$ helm install --set controller.service.type=NodePort ingress-nginx ingress-nginx/ingress-nginx --namespace ingress-nginx
 ```
 
 Check that the nginx services are configures:
 
 ```
 $ kubectl get service --namespace ingress-nginx
-NAME                            TYPE           CLUSTER-IP   EXTERNAL-IP     PORT(S)                      AGE
-nginx-ingress-controller        LoadBalancer   10.0.71.15   40.119.152.40   80:30528/TCP,443:32283/TCP   40s
-nginx-ingress-default-backend   ClusterIP      10.0.38.76   <none>          80/TCP                       40s
+NAME                                               TYPE        CLUSTER-IP       EXTERNAL-IP   PORT(S)                      AGE
+nginx-ingress-ingress-nginx-controller             NodePort    10.100.131.112   <none>        80:31604/TCP,443:30709/TCP   44s
+nginx-ingress-ingress-nginx-controller-admission   ClusterIP   10.108.252.66    <none>        443/TCP                      44s
 ```
 
 Check the details of the nginx ingress controller in order to see port details
 
 ```
-$ kubectl describe  service nginx-ingress-controller  --namespace ingress-nginx
+$ kubectl describe  service nginx-ingress-nginx-ingress --namespace ingress-nginx
 ```
 
 Look for these lines:
 ```
-NodePort:                 http  32320/TCP
-NodePort:                 https  31710/TCP
+NodePort:                 http  32154/TCP
+NodePort:                 https  31213/TCP
 ```
 
 These are the port number you need to redirect traffic to in order to hit the ingress. The source ports should be 80 and 443. The destination IP address could be any of the nodes in the cluster. 
@@ -511,7 +511,21 @@ These are the port number you need to redirect traffic to in order to hit the in
 Run the following script to install cert-manager:
 
 ```
-kubectl apply --validate=false -f https://github.com/jetstack/cert-manager/releases/download/v0.14.1/cert-manager.yaml
+kubectl create namespace cert-manager
+
+# Label the ingress-basic namespace to disable resource validation
+kubectl label namespace cert-manager cert-manager.io/disable-validation=true
+
+# Add the Jetstack Helm repository
+helm repo add jetstack https://charts.jetstack.io
+
+# Update your local Helm chart repository cache
+helm repo update
+
+# Install the cert-manager Helm chart
+helm install cert-manager jetstack/cert-manager \
+  --namespace cert-manager \
+  --set installCRDs=true
 ```
 
 ## Create a CA cluster issuer
@@ -521,8 +535,8 @@ Create a cluster issuer, such as cluster-issuer.yaml, using the following exampl
 
 Note! Update the email address with a valid address from your organization:
 ```
-apiVersion: cert-manager.io/v1alpha2
-kind: Issuer
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
 metadata:
   name: letsencrypt-prod
 spec:
@@ -554,7 +568,7 @@ This step assumes that you already have deployed some service (web application) 
 
 Create a test-ingress.yaml file with the following content:
 ```
-apiVersion: extensions/v1beta1
+apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: test-ingress
@@ -573,9 +587,12 @@ spec:
     http:
       paths:
       - path: /
+        pathType: Prefix
         backend:
-          serviceName: <YourTestService>
-          servicePort: 80
+          service:
+            name: <YourTestService>
+            port:
+              number: 80
 ```
 
 Create the ingress resource with the kubectl apply command:
