@@ -7,9 +7,9 @@ This article documents the process of installing a Kubernetes Cluster on from sc
 
 # What you need
 
-You will a minumum of 3 machines (physical or virtual) running Linux. I will be using Ubuntu Server 18.04.4 LTS. Make sure you allocate at leasdt 2 CPU-cores to each node (otherwise kubeadm init will complain).
+You will a minumum of 3 machines (physical or virtual) running Linux. I will be using Ubuntu Server 20.04.02 LTS. Make sure you allocate at leasdt 2 CPU-cores to each node (otherwise kubeadm init will complain).
 
-# Installing Ubuntu Server 18.04.4 LTS
+# Install Ubuntu Server 20.04.02 LTS
 
 Don't select to install Docker as a part of the operating system installation, since we want to have full control over the version we will install.
 
@@ -60,7 +60,7 @@ $ sudo add-apt-repository \
    stable"
 ```
 
-### Install a specific version of Docker (19.03.8)
+### Install a specific version of Docker (19.03.9)
 
 Update the apt package index
 
@@ -235,7 +235,7 @@ If you want to install a specific version of Kubernets, the installation command
 $ curl -s https://packages.cloud.google.com/apt/doc/apt-key.gpg | sudo apt-key add - && \
   echo "deb http://apt.kubernetes.io/ kubernetes-xenial main" | sudo tee /etc/apt/sources.list.d/kubernetes.list && \
   sudo apt-get update -q && \
-  sudo apt-get install -qy kubelet=1.9.4-00 kubectl=1.9.4-00 kubeadm=1.9.4-00
+  sudo apt-get install -qy kubelet=1.21.0-00 kubectl=1.21.0-00 kubeadm=1.21.0-00
 ```
 
 Replace the version in the command above with the version you want to install. To see a list of the available version numbers, you can issue the following command:
